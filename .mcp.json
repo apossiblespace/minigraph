@@ -2,7 +2,7 @@
   "mcpServers": {
     "clojure-mcp": {
       "command": "/usr/bin/env",
-      "args": ["sh", "-c", "clojure -X:mcp :port 9000"]
+      "args": ["sh", "-c", "clojure -X:mcp :port 51870"]
     }
   }
 }

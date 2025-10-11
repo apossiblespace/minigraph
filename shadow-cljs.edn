@@ -1,4 +1,8 @@
-{:deps true
+{:source-paths ["src" "test"]
+ :dependencies [[org.clojure/clojure "1.12.3"]
+                [org.clojure/clojurescript "1.12.42"]
+                [com.pitch/uix.core "1.4.5"]
+                [com.pitch/uix.dom "1.4.5"]]
  :dev-http {8080 "resources/public"}
 
  :builds
@@ -25,4 +29,5 @@
   :test
   {:target :node-test
    :output-to "target/test.js"
-   :autorun true}}}
+   :autorun true
+   :compiler-options {:infer-externs :auto}}}}
