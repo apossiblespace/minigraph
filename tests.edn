@@ -1,0 +1,13 @@
+#kaocha/v1
+{:tests [{:id :unit
+          :test-paths ["test"]
+          :source-paths ["src"]
+          :type :kaocha.type/cljs
+          :cljs/timeout 10000
+          :cljs/repl-env shadow.cljs.devtools.api/repl-env}]
+
+ :plugins [:kaocha.plugin/profiling]
+ :color? true
+ :watch? true
+ :fail-fast? false
+ :randomize? false}

@@ -1,0 +1,34 @@
+{:paths ["src" "resources"]
+
+ :deps
+ {org.clojure/clojure       {:mvn/version "1.12.3"}
+  org.clojure/clojurescript {:mvn/version "1.12.42"}
+
+  ;; UIx - React wrapper for ClojureScript
+  ;; https://github.com/pitch-io/uix
+  com.pitch/uix.core {:mvn/version "1.4.5"}
+  com.pitch/uix.dom  {:mvn/version "1.4.5"}}
+
+ :aliases
+ {:dev
+  {:extra-paths ["dev"]
+   :extra-deps  {thheller/shadow-cljs {:mvn/version "3.2.1"}}
+   :main-opts   ["-m" "shadow.cljs.devtools.cli" "watch" "app"]}
+
+  :build
+  {:extra-deps {thheller/shadow-cljs {:mvn/version "3.2.1"}}
+   :main-opts  ["-m" "shadow.cljs.devtools.cli" "release" "lib"]}
+
+  :test/run
+  {:extra-paths ["test"]
+   :extra-deps  {lambdaisland/kaocha      {:mvn/version "1.91.1392"}
+                 lambdaisland/kaocha-cljs {:mvn/version "1.8.163"}}
+   :main-opts   ["-m" "kaocha.runner"]
+   :exec-fn     kaocha.runner/exec-fn
+   :exec-args   {:config-file "tests.edn"
+                 :randomize?  false
+                 :fail-fast?  false}}
+
+  :cljfmt
+  {:deps      {dev.weavejester/cljfmt {:mvn/version "0.13.4"}}
+   :main-opts ["-m" "cljfmt.main"]}}}
