@@ -9,8 +9,7 @@
    :output-dir "resources/public/js"
    :asset-path "/js"
    :modules {:main {:init-fn aps.minigraph.dev.app/init}}
-   :devtools {:after-load aps.minigraph.dev.app/reload
-              :preloads [devtools.preload]}}
+   :devtools {:after-load aps.minigraph.dev.app/reload}}
 
   :lib
   {:target :npm-module

@@ -92,8 +92,8 @@
       ;; Line segment is actually a point
       (distance px py x1 y1)
       ;; Calculate projection parameter
-      (let [t      (max 0 (min 1 (/ (+ (* (- px x1) dx)
-                                       (* (- py y1) dy))
+      (let [t      (max 0 (min 1 (/ (+ (* (- px x1) dx
+                                          (* (- py y1) dy)))
                                     length-sq)))
             proj-x (+ x1 (* t dx))
             proj-y (+ y1 (* t dy))]
@@ -120,11 +120,11 @@
   "Calculate simple Bezier control points for a smooth curve
    between two points. Returns [p1x p1y p2x p2y]."
   [x1 y1 x2 y2]
-  (let [dx       (- x2 x1)
-        dy       (- y2 y1)
+  (let [dx        (- x2 x1)
+        _dy       (- y2 y1)
         ;; Control points offset by 40% of the distance
-        offset-x (* 0.4 dx)
-        offset-y (* 0.4 dy)]
+        offset-x  (* 0.4 dx)
+        _offset-y (* 0.4 _dy)]
     [(+ x1 offset-x) y1
      (- x2 offset-x) y2]))
 
@@ -144,7 +144,7 @@
         dx    (- px origin-x)
         dy    (- py origin-y)]
     (point (+ origin-x (- (* dx cos-a) (* dy sin-a)))
-           (+ origin-y (+ (* dx sin-a) (* dy cos-a))))))
+           (+ origin-y (* dx sin-a) (* dy cos-a)))))
 
 ;; Viewport transformations
 ;; -------------------------
