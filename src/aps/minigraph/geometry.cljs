@@ -92,8 +92,8 @@
       ;; Line segment is actually a point
       (distance px py x1 y1)
       ;; Calculate projection parameter
-      (let [t      (max 0 (min 1 (/ (+ (* (- px x1) dx
-                                          (* (- py y1) dy)))
+      (let [t      (max 0 (min 1 (/ (+ (* (- px x1) dx)
+                                       (* (- py y1) dy))
                                     length-sq)))
             proj-x (+ x1 (* t dx))
             proj-y (+ y1 (* t dy))]

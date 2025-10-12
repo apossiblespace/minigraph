@@ -1,8 +1,7 @@
 (ns aps.minigraph.core-test
   (:require [cljs.test :refer-macros [deftest is testing]]
             [aps.minigraph.core :as c]
-            [aps.minigraph.models :as m]
-            [aps.minigraph.geometry :as geo]))
+            [aps.minigraph.models :as m]))
 
 ;; Helper for approximate equality
 (defn approx=
