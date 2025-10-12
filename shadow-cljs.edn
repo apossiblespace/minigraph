@@ -20,8 +20,7 @@
              aps.minigraph.uix.canvas
              aps.minigraph.uix.node
              aps.minigraph.uix.edge
-             aps.minigraph.uix.controls
-             aps.minigraph.uix.selection]}
+             aps.minigraph.uix.controls]}
 
   :test
   {:target :node-test

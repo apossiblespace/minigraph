@@ -13,38 +13,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+      - name: Setup Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Install Clojure tools
-        uses: DeLaGuardo/setup-clojure@12.5
-        with:
-          cli: 1.12.0.1479
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/deps.edn') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
-
-      - name: Install npm dependencies
-        run: npm install
-
-      - name: Check formatting
-        run: clojure -M:cljfmt check
+      - name: Run linter
+        run: nix develop --command clj-kondo --lint src test
 
       - name: Run tests
-        run: clojure -M:test/run
+        run: nix develop --command clojure -M:test/run
 
   build:
     needs: test
@@ -54,38 +33,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '21'
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Clojure tools
-        uses: DeLaGuardo/setup-clojure@12.5
-        with:
-          cli: 1.12.0.1479
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-${{ hashFiles('**/deps.edn') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
+      - name: Setup Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Install npm dependencies
-        run: npm install
+        run: nix develop --command npm install
 
       - name: Build library
-        run: clojure -M:build
+        run: nix develop --command clojure -M:build
 
       - name: Build example app
-        run: npx shadow-cljs release app
+        run: nix develop --command npx shadow-cljs release app
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4

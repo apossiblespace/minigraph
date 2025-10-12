@@ -21,14 +21,8 @@
 
   :test/run
   {:extra-paths ["test"]
-   :extra-deps  {lambdaisland/kaocha      {:mvn/version "1.91.1392"}
-                 lambdaisland/kaocha-cljs {:mvn/version "1.8.163"}
-                 thheller/shadow-cljs     {:mvn/version "3.2.1"}}
-   :main-opts   ["-m" "kaocha.runner"]
-   :exec-fn     kaocha.runner/exec-fn
-   :exec-args   {:config-file "tests.edn"
-                 :randomize?  false
-                 :fail-fast?  false}}
+   :extra-deps  {thheller/shadow-cljs {:mvn/version "3.2.1"}}
+   :main-opts   ["-m" "shadow.cljs.devtools.cli" "compile" "test"]}
 
   :cljfmt
   {:deps      {dev.weavejester/cljfmt {:mvn/version "0.13.4"}}

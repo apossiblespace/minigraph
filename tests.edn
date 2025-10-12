@@ -4,7 +4,9 @@
           :source-paths ["src"]
           :type :kaocha.type/cljs
           :cljs/timeout 10000
-          :cljs/repl-env shadow.cljs.devtools.api/repl-env}]
+          :cljs/compiler-options {}
+          :cljs/repl-env shadow.cljs.devtools.api/node-repl-env
+          :kaocha.type.shadow/build :test}]
 
  :plugins [:kaocha.plugin/profiling]
  :color? true
