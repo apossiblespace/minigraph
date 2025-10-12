@@ -160,14 +160,14 @@
 (defn graph
   "Create a graph state containing nodes, edges, and viewport.
 
-  Optional:
+   Optional:
   - :nodes - Vector of nodes (default [])
   - :edges - Vector of edges (default [])
   - :viewport - Viewport state (default nil, will be set by canvas component)"
   [{:keys [nodes edges viewport]
-    :or {nodes [] edges []}}]
-  {:nodes (vec nodes)
-   :edges (vec edges)
+    :or   {nodes [] edges []}}]
+  {:nodes    (vec nodes)
+   :edges    (vec edges)
    :viewport viewport})
 
 (defn graph?
@@ -227,7 +227,7 @@
   (-> graph
       (update :nodes (fn [nodes] (filterv #(not= (:id %) node-id) nodes)))
       (update :edges (fn [edges] (filterv #(and (not= (:source %) node-id)
-                                                 (not= (:target %) node-id))
+                                                (not= (:target %) node-id))
                                           edges)))))
 
 (defn remove-edge

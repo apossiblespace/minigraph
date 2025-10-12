@@ -66,10 +66,10 @@
   (when (seq rects)
     (let [x-coords (mapcat (fn [{:keys [x width]}] [x (+ x width)]) rects)
           y-coords (mapcat (fn [{:keys [y height]}] [y (+ y height)]) rects)
-          min-x (apply min x-coords)
-          min-y (apply min y-coords)
-          max-x (apply max x-coords)
-          max-y (apply max y-coords)]
+          min-x    (apply min x-coords)
+          min-y    (apply min y-coords)
+          max-x    (apply max x-coords)
+          max-y    (apply max y-coords)]
       (rect min-x min-y (- max-x min-x) (- max-y min-y)))))
 
 ;; Line operations
@@ -85,16 +85,16 @@
    Returns the shortest distance from point (px, py) to the line
    segment from (x1, y1) to (x2, y2)."
   [px py x1 y1 x2 y2]
-  (let [dx (- x2 x1)
-        dy (- y2 y1)
+  (let [dx        (- x2 x1)
+        dy        (- y2 y1)
         length-sq (+ (* dx dx) (* dy dy))]
     (if (zero? length-sq)
       ;; Line segment is actually a point
       (distance px py x1 y1)
       ;; Calculate projection parameter
-      (let [t (max 0 (min 1 (/ (+ (* (- px x1) dx)
-                                   (* (- py y1) dy))
-                                length-sq)))
+      (let [t      (max 0 (min 1 (/ (+ (* (- px x1) dx)
+                                       (* (- py y1) dy))
+                                    length-sq)))
             proj-x (+ x1 (* t dx))
             proj-y (+ y1 (* t dy))]
         (distance px py proj-x proj-y)))))
@@ -106,11 +106,11 @@
   "Calculate a point on a cubic Bezier curve at parameter t (0 to 1).
    P0, P1, P2, P3 are control points."
   [t p0 p1 p2 p3]
-  (let [mt (- 1 t)
+  (let [mt  (- 1 t)
         mt2 (* mt mt)
         mt3 (* mt2 mt)
-        t2 (* t t)
-        t3 (* t2 t)]
+        t2  (* t t)
+        t3  (* t2 t)]
     (+ (* mt3 p0)
        (* 3 mt2 t p1)
        (* 3 mt t2 p2)
@@ -120,8 +120,8 @@
   "Calculate simple Bezier control points for a smooth curve
    between two points. Returns [p1x p1y p2x p2y]."
   [x1 y1 x2 y2]
-  (let [dx (- x2 x1)
-        dy (- y2 y1)
+  (let [dx       (- x2 x1)
+        dy       (- y2 y1)
         ;; Control points offset by 40% of the distance
         offset-x (* 0.4 dx)
         offset-y (* 0.4 dy)]
@@ -141,8 +141,8 @@
   [px py origin-x origin-y angle]
   (let [cos-a (Math/cos angle)
         sin-a (Math/sin angle)
-        dx (- px origin-x)
-        dy (- py origin-y)]
+        dx    (- px origin-x)
+        dy    (- py origin-y)]
     (point (+ origin-x (- (* dx cos-a) (* dy sin-a)))
            (+ origin-y (+ (* dx sin-a) (* dy cos-a))))))
 
