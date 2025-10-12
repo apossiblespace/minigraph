@@ -9,6 +9,21 @@
   (:require [aps.minigraph.geometry :as geo]
             [aps.minigraph.models :as m]))
 
+;; Constants
+;; ---------
+
+(def ^:const min-zoom
+  "Minimum allowed zoom level"
+  0.1)
+
+(def ^:const max-zoom
+  "Maximum allowed zoom level"
+  5.0)
+
+(def ^:const fit-viewport-padding
+  "Default padding (in canvas units) when fitting viewport to nodes"
+  50)
+
 ;; Viewport operations
 ;; -------------------
 
@@ -19,7 +34,7 @@
   [viewport zoom-delta center-x center-y]
   {:pre [(m/viewport? viewport) (pos? zoom-delta)]}
   (let [{:keys [x y zoom]} viewport
-        new-zoom (max 0.1 (min 5.0 (* zoom zoom-delta))) ; Clamp zoom between 0.1 and 5.0
+        new-zoom (max min-zoom (min max-zoom (* zoom zoom-delta)))
         zoom-ratio (/ new-zoom zoom)
         ;; Calculate canvas point at center before zoom
         canvas-center (geo/screen-to-canvas viewport center-x center-y)
@@ -58,13 +73,13 @@
                                       (:width node) (:height node)))
                           nodes)
           bounds (geo/rect-bounds node-rects)
-          padding 50
+          padding fit-viewport-padding
           content-width (+ (:width bounds) (* 2 padding))
           content-height (+ (:height bounds) (* 2 padding))
           {:keys [width height]} viewport
           zoom-x (/ width content-width)
           zoom-y (/ height content-height)
-          new-zoom (max 0.1 (min 1.0 (min zoom-x zoom-y))) ; Clamp and don't zoom in beyond 100%
+          new-zoom (max min-zoom (min max-zoom (min zoom-x zoom-y)))
           new-x (- (:x bounds) padding)
           new-y (- (:y bounds) padding)]
       (m/update-viewport-pan

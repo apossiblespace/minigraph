@@ -10,7 +10,7 @@
 ;; Node
 ;; ----
 
-(defn make-node
+(defn node
   "Create a node with required and optional fields.
 
   Required:
@@ -68,7 +68,7 @@
 ;; Edge
 ;; ----
 
-(defn make-edge
+(defn edge
   "Create an edge connecting two nodes.
 
   Required:
@@ -104,7 +104,7 @@
 ;; Viewport
 ;; --------
 
-(defn make-viewport
+(defn viewport
   "Create a viewport representing the visible canvas area.
 
   Required:
@@ -157,7 +157,7 @@
 ;; Graph
 ;; -----
 
-(defn make-graph
+(defn graph
   "Create a graph state containing nodes, edges, and viewport.
 
   Optional:
@@ -192,16 +192,22 @@
   (some #(when (= (:id %) edge-id) %) (:edges graph)))
 
 (defn add-node
-  "Add a node to the graph."
+  "Add a node to the graph. Returns nil if a node with the same ID already exists."
   [graph node]
   {:pre [(graph? graph) (node? node)]}
-  (update graph :nodes conj node))
+  (when-not (find-node graph (:id node))
+    (update graph :nodes conj node)))
 
 (defn add-edge
-  "Add an edge to the graph."
+  "Add an edge to the graph. Returns nil if:
+   - An edge with the same ID already exists
+   - Source or target nodes don't exist in the graph"
   [graph edge]
   {:pre [(graph? graph) (edge? edge)]}
-  (update graph :edges conj edge))
+  (when (and (not (find-edge graph (:id edge)))
+             (find-node graph (:source edge))
+             (find-node graph (:target edge)))
+    (update graph :edges conj edge)))
 
 (defn update-node
   "Update a node in the graph by ID."
