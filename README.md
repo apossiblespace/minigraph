@@ -1,6 +1,6 @@
 # minigraph
 
-[![License GPL 3][badge-license]](http://www.gnu.org/licenses/gpl-3.0.txt)
+[![CI](https://github.com/apossiblespace/minigraph/actions/workflows/ci.yml/badge.svg)](https://github.com/apossiblespace/minigraph/actions/workflows/ci.yml) [![License GPL 3][badge-license]](http://www.gnu.org/licenses/gpl-3.0.txt)
 
 A minimalistic interactive graph library for ClojureScript, purpose-developed for [Parts](https://github.com/apossiblespace/parts).
 
