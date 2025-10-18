@@ -10,9 +10,10 @@
   - :node - Node data
   - :viewport - Viewport for transformations
   - :selected? - Boolean, whether node is selected
+  - :highlight? - Boolean, whether node is highlighted as valid drop target
   - :on-click - (fn [node-id event])
   - :on-mouse-down - (fn [node-id event is-border-click?])"
-  [{:keys [node viewport selected? on-click on-mouse-down]}]
+  [{:keys [node viewport selected? highlight? on-click on-mouse-down]}]
 
   (let [;; Convert canvas coordinates to screen coordinates
         screen-pos (geo/canvas-to-screen viewport (:x node) (:y node))
@@ -52,9 +53,18 @@
            :y (:y screen-pos)
            :width screen-width
            :height screen-height
-           :fill (if selected? "#e3f2fd" "#fff")
-           :stroke (if selected? "#2196f3" "#666")
-           :stroke-width (if selected? 3 2)
+           :fill (cond
+                   highlight? "#c8e6c9"
+                   selected? "#e3f2fd"
+                   :else "#fff")
+           :stroke (cond
+                     highlight? "#4caf50"
+                     selected? "#2196f3"
+                     :else "#666")
+           :stroke-width (cond
+                           highlight? 3
+                           selected? 3
+                           :else 2)
            :rx 4
            :cursor "move"
            :on-mouse-down (fn [e]

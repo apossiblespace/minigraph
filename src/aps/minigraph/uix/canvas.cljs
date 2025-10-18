@@ -144,10 +144,18 @@
               ;; Need SVG-relative coordinates, not window-relative
               (let [svg-rect (.getBoundingClientRect (.-currentTarget e))
                     svg-x (- (.-clientX e) (.-left svg-rect))
-                    svg-y (- (.-clientY e) (.-top svg-rect))]
+                    svg-y (- (.-clientY e) (.-top svg-rect))
+                    ;; Check if hovering over a valid target node
+                    hovered-node (c/node-at-point nodes viewport svg-x svg-y)
+                    source-id (:source-id drag-state)
+                    ;; Valid target: exists, not source, no duplicate edge
+                    valid-target? (and hovered-node
+                                       (not= (:id hovered-node) source-id)
+                                       (not (m/edge-exists? graph source-id (:id hovered-node))))]
                 (set-drag-state! (assoc drag-state
                                         :current-x svg-x
-                                        :current-y svg-y)))
+                                        :current-y svg-y
+                                        :hover-target-id (when valid-target? (:id hovered-node)))))
 
               :pan
               (let [screen-dx (- (.-clientX e) (:start-x drag-state))
@@ -268,7 +276,7 @@
                 :viewport viewport
                 :on-click on-edge-click}))
 
-          ;; Render temporary edge during edge creation
+;; Render temporary edge during edge creation
           (when (and drag-state (= (:type drag-state) :edge-create))
             (let [source-node (get node-map (:source-id drag-state))
                   source-center (when source-node
@@ -276,19 +284,31 @@
                                    (geo/rect (:x source-node) (:y source-node)
                                              (:width source-node) (:height source-node))))
                   source-screen (when source-center
-                                  (geo/canvas-to-screen viewport (:x source-center) (:y source-center)))]
+                                  (geo/canvas-to-screen viewport (:x source-center) (:y source-center)))
+                  ;; If hovering over a valid target, snap to its center
+                  hover-target-id (:hover-target-id drag-state)
+                  target-node (when hover-target-id (get node-map hover-target-id))
+                  target-center (when target-node
+                                  (geo/rect-center
+                                   (geo/rect (:x target-node) (:y target-node)
+                                             (:width target-node) (:height target-node))))
+                  target-screen (when target-center
+                                  (geo/canvas-to-screen viewport (:x target-center) (:y target-center)))
+                  ;; Use target center if available, otherwise cursor position
+                  end-x (if target-screen (:x target-screen) (:current-x drag-state))
+                  end-y (if target-screen (:y target-screen) (:current-y drag-state))]
               (when source-screen
                 ($ :line
                    {:x1 (:x source-screen)
                     :y1 (:y source-screen)
-                    :x2 (:current-x drag-state)
-                    :y2 (:current-y drag-state)
+                    :x2 end-x
+                    :y2 end-y
                     :stroke "#2196f3"
                     :stroke-width 2
-                    :stroke-dasharray "5,5"
+                    :stroke-dasharray (if target-screen "0" "5,5")
                     :pointer-events "none"}))))
 
-          ;; Render nodes with selected nodes last (on top)
+;; Render nodes with selected nodes last (on top)
           (for [n sorted-nodes]
             (let [;; Apply drag offset if this node is being dragged
                   is-dragging? (and drag-state
@@ -298,12 +318,17 @@
                                  (assoc n
                                         :x (+ (:x n) (:dx drag-state))
                                         :y (+ (:y n) (:dy drag-state)))
-                                 n)]
+                                 n)
+                  ;; Highlight node if it's a valid edge creation target
+                  is-highlighted? (and drag-state
+                                       (= (:type drag-state) :edge-create)
+                                       (= (:hover-target-id drag-state) (:id n)))]
               ($ node
                  {:key (:id n)
                   :node display-node
                   :viewport viewport
                   :selected? (contains? selected-nodes (:id n))
+                  :highlight? is-highlighted?
                   :on-click handle-node-click
                   :on-mouse-down handle-node-mouse-down}))))
 
