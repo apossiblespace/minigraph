@@ -12,9 +12,10 @@
   - :target-node - Target node data (optional, uses cursor-pos if nil)
   - :cursor-pos - Cursor position {:x :y} (for temporary edges)
   - :temporary? - Boolean, render as temporary edge
+  - :selected? - Boolean, render as selected
   - :viewport - Viewport for transformations
   - :on-click - (fn [edge-id event])"
-  [{:keys [edge source-node target-node cursor-pos temporary?
+  [{:keys [edge source-node target-node cursor-pos temporary? selected?
            viewport on-click]}]
 
   (when source-node
@@ -59,22 +60,26 @@
                  ", " c2x " " c2y
                  ", " (:x end-point) " " (:y end-point)))
 
-          ;; Determine stroke style
-          stroke-color (if temporary? "#2196f3" "#999")
+          ;; Determine stroke style based on state
+          stroke-color (cond
+                         selected? "#2196f3"
+                         temporary? "#2196f3"
+                         :else "#999")
+          stroke-width (if selected? 3 2)
           ;; Dashed if temporary and no target (not snapped)
-          stroke-dash  (if (and temporary? (not target-node))
-                         "5,5"
-                         "0")]
+          stroke-dash (if (and temporary? (not target-node))
+                        "5,5"
+                        "0")]
 
       (when path-d
         ($ :path
-           {:d                path-d
-            :stroke           stroke-color
-            :stroke-width     2
+           {:d path-d
+            :stroke stroke-color
+            :stroke-width stroke-width
             :stroke-dasharray stroke-dash
-            :fill             "none"
-            :pointer-events   (if temporary? "none" "auto")
-            :on-click         (fn [e]
-                                (when (and on-click edge)
-                                  (.stopPropagation e)
-                                  (on-click (:id edge) e)))})))))
+            :fill "none"
+            :pointer-events (if temporary? "none" "auto")
+            :on-click (fn [e]
+                        (when (and on-click edge)
+                          (.stopPropagation e)
+                          (on-click (:id edge) e)))})))))

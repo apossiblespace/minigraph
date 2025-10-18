@@ -139,10 +139,13 @@
   - :on-edge-click - (fn [edge-id event])
   - :on-edge-create - (fn [edge-data] -> boolean) Return false to cancel
   - :on-canvas-click - (fn [canvas-x canvas-y event])
-  - :on-viewport-change - (fn [viewport])"
+  - :on-viewport-change - (fn [viewport])
+  - :on-nodes-deleted - (fn [node-ids]) Called with set of node IDs
+  - :on-edges-deleted - (fn [edge-ids]) Called with set of edge IDs"
   [{:keys [graph width height
            on-node-click on-node-drag on-node-drag-end
-           on-edge-click on-edge-create _on-canvas-click on-viewport-change]}]
+           on-edge-click on-edge-create _on-canvas-click on-viewport-change
+           on-nodes-deleted on-edges-deleted]}]
 
   ;; Initialize viewport if not present in graph
   (let [initial-viewport         (or (:viewport graph)
@@ -161,8 +164,12 @@
         ;;  :current-y number (for edge-create)}
         [drag-state set-drag-state!] (uix/use-state nil)
 
-        ;; Selection state: set of selected node IDs
+        ;; Selection state: sets of selected node and edge IDs
         [selected-nodes set-selected-nodes!] (uix/use-state #{})
+        [selected-edges set-selected-edges!] (uix/use-state #{})
+
+        ;; Ref to SVG element for focus management
+        svg-ref (uix/use-ref nil)
 
         ;; Notify parent of viewport changes
         _ (uix/use-effect
@@ -197,13 +204,38 @@
 
         handle-node-click
         (fn [node-id e]
+          ;; Focus SVG to enable keyboard events
+          (when @svg-ref
+            (.focus @svg-ref))
           ;; Also call user's handler if provided
           (when on-node-click
             (on-node-click node-id e)))
 
+        handle-edge-click
+        (fn [edge-id e]
+          (.stopPropagation e)
+          ;; Focus SVG to enable keyboard events
+          (when @svg-ref
+            (.focus @svg-ref))
+          (let [ctrl-key      (or (.-ctrlKey e) (.-metaKey e))
+                new-selection (c/toggle-selection
+                               selected-edges
+                               edge-id
+                               ctrl-key)]
+            (set-selected-edges! new-selection)
+            ;; Clear node selection when not holding Ctrl/Cmd
+            (when-not ctrl-key
+              (set-selected-nodes! #{})))
+          ;; Also call user's handler if provided
+          (when on-edge-click
+            (on-edge-click edge-id e)))
+
         handle-node-mouse-down
         (fn [node-id e is-border-click?]
           (.preventDefault e)
+          ;; Focus SVG to enable keyboard events
+          (when @svg-ref
+            (.focus @svg-ref))
           (if is-border-click?
             ;; Start edge creation from border
             ;; Get the SVG element (parent of the g/rect elements)
@@ -222,7 +254,10 @@
                                    selected-nodes
                                    node-id
                                    ctrl-key)]
-                (set-selected-nodes! new-selection))
+                (set-selected-nodes! new-selection)
+                ;; Clear edge selection when not holding Ctrl/Cmd
+                (when-not ctrl-key
+                  (set-selected-edges! #{})))
               ;; Start drag state
               (set-drag-state! {:type    :node
                                 :node-id node-id
@@ -234,9 +269,10 @@
           ;; Only handle if clicking directly on the SVG (not on nodes/edges)
           (when (= (.-target e) (.-currentTarget e))
             (.preventDefault e)
-            ;; Clear selection unless Ctrl/Cmd is held
+            ;; Clear both selections unless Ctrl/Cmd is held
             (when-not (or (.-ctrlKey e) (.-metaKey e))
-              (set-selected-nodes! #{}))
+              (set-selected-nodes! #{})
+              (set-selected-edges! #{}))
             ;; Start pan drag
             (set-drag-state! {:type    :pan
                               :start-x (.-clientX e)
@@ -322,7 +358,30 @@
         (fn []
           ;; Fit all nodes into viewport
           (let [new-viewport (c/fit-viewport viewport nodes)]
-            (set-viewport! new-viewport)))]
+            (set-viewport! new-viewport)))
+
+        handle-delete
+        (fn []
+          ;; Delete selected nodes and edges
+          (when (or (seq selected-nodes) (seq selected-edges))
+            (if (seq selected-nodes)
+              ;; Delete nodes (edges cascade automatically in remove-node)
+              (when on-nodes-deleted
+                (on-nodes-deleted selected-nodes))
+              ;; Delete only edges (no nodes selected)
+              (when on-edges-deleted
+                (on-edges-deleted selected-edges)))
+            ;; Clear selection
+            (set-selected-nodes! #{})
+            (set-selected-edges! #{})))
+
+        handle-key-down
+        (fn [e]
+          ;; Handle Delete and Backspace keys
+          (when (or (= (.-key e) "Delete")
+                    (= (.-key e) "Backspace"))
+            (.preventDefault e)
+            (handle-delete)))]
 
     ($ :div
        {:style {:position "relative"
@@ -330,16 +389,20 @@
                 :height   (str height "px")}}
 
        ($ :svg
-          {:width          width
+          {:ref            svg-ref
+           :width          width
            :height         height
            :style          {:border      "1px solid #ccc"
                             :background  "#fff"
-                            :user-select "none"}
+                            :user-select "none"
+                            :outline     "none"}
+           :tab-index      0
            :on-mouse-down  handle-canvas-mouse-down
            :on-mouse-move  handle-mouse-move
            :on-mouse-up    handle-mouse-up
            :on-mouse-leave handle-mouse-up
-           :on-wheel       handle-wheel}
+           :on-wheel       handle-wheel
+           :on-key-down    handle-key-down}
 
           ;; Render edges first (so they appear behind nodes)
           (for [e edges]
@@ -348,8 +411,9 @@
                 :edge        e
                 :source-node (get display-node-map (:source e))
                 :target-node (get display-node-map (:target e))
+                :selected?   (contains? selected-edges (:id e))
                 :viewport    viewport
-                :on-click    on-edge-click}))
+                :on-click    handle-edge-click}))
 
           ;; Render temporary edge during edge creation
           (when (and drag-state (= (:type drag-state) :edge-create))

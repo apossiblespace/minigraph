@@ -209,6 +209,18 @@
   {:pre [(graph? graph) (string? node-id-1) (string? node-id-2)]}
   (boolean (seq (find-edges-between graph node-id-1 node-id-2))))
 
+(defn find-edges-for-nodes
+  "Find all edges connected to any of the given node IDs.
+   Returns a vector of edge IDs."
+  [graph node-ids]
+  {:pre [(graph? graph) (coll? node-ids)]}
+  (let [node-id-set (set node-ids)]
+    (->> (:edges graph)
+         (filter (fn [edge]
+                   (or (contains? node-id-set (:source edge))
+                       (contains? node-id-set (:target edge)))))
+         (mapv :id))))
+
 (defn add-node
   "Add a node to the graph. Returns nil if a node with the same ID already exists."
   [graph node]

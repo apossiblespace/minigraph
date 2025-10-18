@@ -70,9 +70,13 @@
               :on-click add-node!}
              "+ Add Node"))
 
-       ($ :p
-          {:style {:color "#666" :font-size "14px"}}
-          "💡 Tip: Drag from the center to move nodes. Drag from the border to create edges.")
+       ($ :div
+          ($ :p
+             {:style {:color "#666" :font-size "14px" :margin "0 0 8px 0"}}
+             "💡 Tip: Drag from the center to move nodes. Drag from the border to create edges.")
+          ($ :p
+             {:style {:color "#666" :font-size "14px" :margin 0}}
+             "🗑️ Select items (Cmd/Ctrl+click for multi-select) and press Delete/Backspace to remove."))
 
        ($ canvas
           {:graph graph
@@ -93,7 +97,17 @@
                              (when-let [new-graph (m/add-edge graph edge-data)]
                                (set-graph! new-graph)))
            :on-canvas-click (fn [x y _event]
-                              (js/console.log "Canvas clicked:" x y))}))))
+                              (js/console.log "Canvas clicked:" x y))
+           :on-nodes-deleted (fn [node-ids]
+                               (js/console.log "Nodes deleted:" node-ids)
+                               ;; Remove nodes (edges cascade automatically)
+                               (set-graph!
+                                (reduce m/remove-node graph node-ids)))
+           :on-edges-deleted (fn [edge-ids]
+                               (js/console.log "Edges deleted:" edge-ids)
+                               ;; Remove edges only
+                               (set-graph!
+                                (reduce m/remove-edge graph edge-ids)))}))))
 
 (defonce root
   (uix.dom/create-root (js/document.getElementById "app")))
