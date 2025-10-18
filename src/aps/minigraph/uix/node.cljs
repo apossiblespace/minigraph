@@ -11,9 +11,7 @@
   - :viewport - Viewport for transformations
   - :selected? - Boolean, whether node is selected
   - :on-click - (fn [node-id event])
-  - :on-drag-start - (fn [node-id event])
-  - :on-drag - (fn [node-id dx dy])
-  - :on-drag-end - (fn [node-id x y])"
+  - :on-mouse-down - (fn [node-id event is-border-click?])"
   [{:keys [node viewport selected? on-click on-mouse-down]}]
 
   (let [;; Convert canvas coordinates to screen coordinates
@@ -21,7 +19,26 @@
         screen-width (* (:width node) (:zoom viewport))
         screen-height (* (:height node) (:zoom viewport))
 
-        label (get-in node [:data :label] (:id node))]
+        label (get-in node [:data :label] (:id node))
+
+        ;; Border zone is the outer 25% of the node
+        border-threshold 0.25
+
+        ;; Check if a mouse event is in the border zone
+        is-border-click?
+        (fn [e]
+          (let [svg-rect (.getBoundingClientRect (.-currentTarget e))
+                ;; Get mouse position relative to the rect element
+                local-x (- (.-clientX e) (.-left svg-rect))
+                local-y (- (.-clientY e) (.-top svg-rect))
+                ;; Calculate relative position (0 to 1)
+                rel-x (/ local-x screen-width)
+                rel-y (/ local-y screen-height)]
+            ;; Check if in outer border zone
+            (or (< rel-x border-threshold)
+                (> rel-x (- 1 border-threshold))
+                (< rel-y border-threshold)
+                (> rel-y (- 1 border-threshold)))))]
 
     ($ :g
        {:on-click (fn [e]
@@ -43,7 +60,7 @@
            :on-mouse-down (fn [e]
                             (when on-mouse-down
                               (.stopPropagation e)
-                              (on-mouse-down (:id node) e)))})
+                              (on-mouse-down (:id node) e (is-border-click? e))))})
 
        ;; Node label
        ($ :text

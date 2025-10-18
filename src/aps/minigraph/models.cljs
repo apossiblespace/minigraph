@@ -165,9 +165,9 @@
   - :edges - Vector of edges (default [])
   - :viewport - Viewport state (default nil, will be set by canvas component)"
   [{:keys [nodes edges viewport]
-    :or   {nodes [] edges []}}]
-  {:nodes    (vec nodes)
-   :edges    (vec edges)
+    :or {nodes [] edges []}}]
+  {:nodes (vec nodes)
+   :edges (vec edges)
    :viewport viewport})
 
 (defn graph?
@@ -190,6 +190,24 @@
   [graph edge-id]
   {:pre [(graph? graph) (string? edge-id)]}
   (some #(when (= (:id %) edge-id) %) (:edges graph)))
+
+(defn find-edges-between
+  "Find all edges between two nodes (in either direction).
+   Returns a vector of edges where source/target match the given node IDs."
+  [graph node-id-1 node-id-2]
+  {:pre [(graph? graph) (string? node-id-1) (string? node-id-2)]}
+  (filterv (fn [edge]
+             (or (and (= (:source edge) node-id-1)
+                      (= (:target edge) node-id-2))
+                 (and (= (:source edge) node-id-2)
+                      (= (:target edge) node-id-1))))
+           (:edges graph)))
+
+(defn edge-exists?
+  "Check if an edge already exists between two nodes (in either direction)."
+  [graph node-id-1 node-id-2]
+  {:pre [(graph? graph) (string? node-id-1) (string? node-id-2)]}
+  (boolean (seq (find-edges-between graph node-id-1 node-id-2))))
 
 (defn add-node
   "Add a node to the graph. Returns nil if a node with the same ID already exists."
