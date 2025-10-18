@@ -122,9 +122,9 @@
   [x1 y1 x2 y2]
   (let [dx        (- x2 x1)
         _dy       (- y2 y1)
-        ;; Control points offset by 40% of the distance
-        offset-x  (* 0.4 dx)
-        _offset-y (* 0.4 _dy)]
+        ;; Control points offset by 70% of the distance for pronounced curves
+        offset-x  (* 0.7 dx)
+        _offset-y (* 0.7 _dy)]
     [(+ x1 offset-x) y1
      (- x2 offset-x) y2]))
 

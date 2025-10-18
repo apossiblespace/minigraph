@@ -23,3 +23,4 @@ Based on .gitignore, this project will use standard Clojure/ClojureScript toolin
 ## Development Commands
 
 To be added once build configuration (project.clj or deps.edn) is in place.
+- Keep lines under 80 cols in length
