@@ -169,6 +169,16 @@
   "Get the canvas bounds visible in the viewport."
   [viewport]
   (let [{:keys [x y width height zoom]} viewport
-        canvas-width (/ width zoom)
-        canvas-height (/ height zoom)]
+        canvas-width                    (/ width zoom)
+        canvas-height                   (/ height zoom)]
     (rect x y canvas-width canvas-height)))
+
+(defn selection-box-rect
+  "Create a rectangle from two points (handles any drag direction).
+   Returns a rect with positive width/height."
+  [x1 y1 x2 y2]
+  (let [min-x (min x1 x2)
+        min-y (min y1 y2)
+        max-x (max x1 x2)
+        max-y (max y1 y2)]
+    (rect min-x min-y (- max-x min-x) (- max-y min-y))))

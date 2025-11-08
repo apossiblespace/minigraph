@@ -3,6 +3,7 @@
   (:require [uix.core :as uix :refer [defui $]]
             [uix.dom]
             [aps.minigraph.core :as c]
+            [aps.minigraph.geometry :as geo]
             [aps.minigraph.models :as m]
             [aps.minigraph.uix.node :refer [node]]
             [aps.minigraph.uix.edge :refer [edge]]
@@ -59,10 +60,13 @@
          (:start-x drag-state)
          (:start-y drag-state)
          (.-clientX e)
-         (.-clientY e))]
+         (.-clientY e))
+        dragged-node-ids (:dragged-node-ids drag-state)]
     {:drag-state  (assoc drag-state :dx dx :dy dy)
      :callback-fn #(when on-node-drag
-                     (on-node-drag (:node-id drag-state) dx dy))}))
+                     ;; Call on-node-drag for each dragged node
+                     (doseq [node-id dragged-node-ids]
+                       (on-node-drag node-id dx dy)))}))
 
 (defn- handle-edge-create-move
   "Handle mouse move during edge creation."
@@ -88,21 +92,26 @@
                         :start-x (.-clientX e)
                         :start-y (.-clientY e))}))
 
+(defn- handle-select-move
+  "Handle mouse move during drag selection."
+  [drag-state e]
+  (let [{:keys [x y]} (get-svg-coords e)]
+    {:drag-state (assoc drag-state
+                        :current-x x
+                        :current-y y)}))
+
 (defn- handle-node-drag-end
   "Handle mouse up after node drag."
-  [drag-state viewport node-map e on-node-drag-end]
-  (let [node (get node-map (:node-id drag-state))
-        {:keys [dx dy]}
-        (c/calculate-drag-delta
-         viewport
-         (:start-x drag-state)
-         (:start-y drag-state)
-         (.-clientX e)
-         (.-clientY e))]
-    (when (and node on-node-drag-end)
-      (on-node-drag-end (:node-id drag-state)
-                        (+ (:x node) dx)
-                        (+ (:y node) dy)))))
+  [drag-state _viewport node-map _e on-node-drag-end]
+  (let [dx               (or (:dx drag-state) 0)
+        dy               (or (:dy drag-state) 0)
+        dragged-node-ids (:dragged-node-ids drag-state)]
+    (when (and on-node-drag-end (or (not= dx 0) (not= dy 0)))
+      (doseq [node-id dragged-node-ids]
+        (when-let [node (get node-map node-id)]
+          (on-node-drag-end node-id
+                            (+ (:x node) dx)
+                            (+ (:y node) dy)))))))
 
 (defn- handle-edge-create-end
   "Handle mouse up after edge creation."
@@ -120,6 +129,29 @@
                                :target target-id})]
         (when on-edge-create
           (on-edge-create edge-data))))))
+
+(defn- handle-select-end
+  "Handle mouse up after drag selection."
+  [drag-state nodes viewport e selected-nodes set-selected-nodes!
+   set-selected-edges!]
+  (let [{:keys [x y]} (get-svg-coords e)
+        start-x       (:start-x drag-state)
+        start-y       (:start-y drag-state)
+        ;; Create selection box rect
+        select-rect   (geo/selection-box-rect start-x start-y x y)
+        ;; Find nodes in selection box
+        nodes-in-box  (c/nodes-in-rect nodes viewport select-rect)
+        node-ids      (into #{} (map :id nodes-in-box))
+        ;; Check if Ctrl/Cmd is held
+        ctrl-key      (or (.-ctrlKey e) (.-metaKey e))
+        ;; Update selection
+        new-selection (if ctrl-key
+                        (into selected-nodes node-ids)
+                        node-ids)]
+    (set-selected-nodes! new-selection)
+    ;; Clear edge selection when not holding Ctrl/Cmd
+    (when-not ctrl-key
+      (set-selected-edges! #{}))))
 
 (defn- zoom-at-point
   "Zoom viewport at a specific point with given factor."
@@ -153,15 +185,17 @@
         [viewport set-viewport!] (uix/use-state initial-viewport)
 
         ;; Drag state:
-        ;; {:type :node/:pan/:edge-create
-        ;;  :node-id string
+        ;; {:type :node/:pan/:edge-create/:select
+        ;;  :node-id string (for :node - the node clicked)
+        ;;  :dragged-node-ids set (for :node - all nodes being dragged)
         ;;  :start-x number
         ;;  :start-y number
-        ;;  :dx number
-        ;;  :dy number
-        ;;  :source-id string (for edge-create)
-        ;;  :current-x number (for edge-create)
-        ;;  :current-y number (for edge-create)}
+        ;;  :dx number (for :node)
+        ;;  :dy number (for :node)
+        ;;  :source-id string (for :edge-create)
+        ;;  :current-x number (for :edge-create and :select)
+        ;;  :current-y number (for :edge-create and :select)
+        ;;  :hover-target-id string (for :edge-create)}
         [drag-state set-drag-state!] (uix/use-state nil)
 
         ;; Selection state: sets of selected node and edge IDs
@@ -170,6 +204,9 @@
 
         ;; Ref to SVG element for focus management
         svg-ref (uix/use-ref nil)
+
+        ;; Ref to track if we just finished dragging (to suppress click)
+        just-dragged-ref (uix/use-ref false)
 
         ;; Notify parent of viewport changes
         _ (uix/use-effect
@@ -186,17 +223,18 @@
         display-node-map
         (if (and drag-state
                  (= (:type drag-state) :node)
-                 (:dx drag-state))
-          (let [dragged-id   (:node-id drag-state)
-                dragged-node (get node-map dragged-id)
-                updated-node (when dragged-node
-                               (apply-drag-offset
-                                dragged-node
-                                (:dx drag-state)
-                                (:dy drag-state)))]
-            (if updated-node
-              (assoc node-map dragged-id updated-node)
-              node-map))
+                 (:dx drag-state)
+                 (:dragged-node-ids drag-state))
+          ;; Apply offset to all dragged nodes
+          (reduce (fn [acc-map node-id]
+                    (if-let [node (get node-map node-id)]
+                      (assoc acc-map node-id
+                             (apply-drag-offset node
+                                                (:dx drag-state)
+                                                (:dy drag-state)))
+                      acc-map))
+                  node-map
+                  (:dragged-node-ids drag-state))
           node-map)
 
         ;; Sort nodes so selected nodes render last (on top)
@@ -204,12 +242,16 @@
 
         handle-node-click
         (fn [node-id e]
-          ;; Focus SVG to enable keyboard events
-          (when @svg-ref
-            (.focus @svg-ref))
-          ;; Also call user's handler if provided
-          (when on-node-click
-            (on-node-click node-id e)))
+          ;; Suppress click if we just finished dragging
+          (if @just-dragged-ref
+            (reset! just-dragged-ref false)
+            (do
+              ;; Focus SVG to enable keyboard events
+              (when @svg-ref
+                (.focus @svg-ref))
+              ;; Also call user's handler if provided
+              (when on-node-click
+                (on-node-click node-id e)))))
 
         handle-edge-click
         (fn [edge-id e]
@@ -247,36 +289,61 @@
                                 :current-x x
                                 :current-y y}))
             ;; Normal node drag from center
-            (do
-              ;; Update selection on mouse down
-              (let [ctrl-key      (or (.-ctrlKey e) (.-metaKey e))
-                    new-selection (c/toggle-selection
-                                   selected-nodes
-                                   node-id
-                                   ctrl-key)]
-                (set-selected-nodes! new-selection)
-                ;; Clear edge selection when not holding Ctrl/Cmd
-                (when-not ctrl-key
-                  (set-selected-edges! #{})))
-              ;; Start drag state
-              (set-drag-state! {:type    :node
-                                :node-id node-id
-                                :start-x (.-clientX e)
-                                :start-y (.-clientY e)}))))
+            ;; Update selection on mouse down
+            (let [ctrl-key          (or (.-ctrlKey e) (.-metaKey e))
+                  already-selected? (contains? selected-nodes node-id)
+                  ;; Selection logic:
+                  ;; - If already selected and no Ctrl -> keep selection
+                  ;; - If not selected and no Ctrl -> select only this
+                  ;; - If Ctrl -> toggle
+                  new-selection     (if ctrl-key
+                                      (c/toggle-selection selected-nodes
+                                                          node-id
+                                                          true)
+                                      (if already-selected?
+                                        selected-nodes
+                                        #{node-id}))
+                  ;; Determine which nodes to drag
+                  nodes-to-drag     (if already-selected?
+                                      ;; Dragging a selected node -> move all
+                                      selected-nodes
+                                      ;; Dragging unselected node -> move just it
+                                      new-selection)]
+              (set-selected-nodes! new-selection)
+              ;; Clear edge selection when not holding Ctrl/Cmd
+              (when-not ctrl-key
+                (set-selected-edges! #{}))
+              ;; Start drag state with all nodes to be dragged
+              (set-drag-state! {:type             :node
+                                :node-id          node-id
+                                :dragged-node-ids nodes-to-drag
+                                :start-x          (.-clientX e)
+                                :start-y          (.-clientY e)}))))
 
         handle-canvas-mouse-down
         (fn [e]
           ;; Only handle if clicking directly on the SVG (not on nodes/edges)
           (when (= (.-target e) (.-currentTarget e))
             (.preventDefault e)
-            ;; Clear both selections unless Ctrl/Cmd is held
-            (when-not (or (.-ctrlKey e) (.-metaKey e))
-              (set-selected-nodes! #{})
-              (set-selected-edges! #{}))
-            ;; Start pan drag
-            (set-drag-state! {:type    :pan
-                              :start-x (.-clientX e)
-                              :start-y (.-clientY e)})))
+            (let [{:keys [x y]} (get-svg-coords e)
+                  shift-key?    (.-shiftKey e)]
+              (if shift-key?
+                ;; Shift + drag = drag selection
+                (set-drag-state! {:type      :select
+                                  :start-x   x
+                                  :start-y   y
+                                  :current-x x
+                                  :current-y y})
+                ;; Normal canvas drag = pan
+                (do
+                  ;; Clear both selections unless Ctrl/Cmd is held
+                  (when-not (or (.-ctrlKey e) (.-metaKey e))
+                    (set-selected-nodes! #{})
+                    (set-selected-edges! #{}))
+                  ;; Start pan drag
+                  (set-drag-state! {:type    :pan
+                                    :start-x (.-clientX e)
+                                    :start-y (.-clientY e)}))))))
 
         handle-mouse-move
         (fn [e]
@@ -301,6 +368,11 @@
                 (set-viewport! viewport)
                 (set-drag-state! drag-state))
 
+              :select
+              (let [{:keys [drag-state]}
+                    (handle-select-move drag-state e)]
+                (set-drag-state! drag-state))
+
               nil)))
 
         handle-mouse-up
@@ -308,8 +380,14 @@
           (when drag-state
             (case (:type drag-state)
               :node
-              (handle-node-drag-end drag-state viewport node-map
-                                    e on-node-drag-end)
+              (do
+                (handle-node-drag-end drag-state viewport node-map
+                                      e on-node-drag-end)
+                ;; Mark that we just dragged to suppress next click
+                (let [dx (or (:dx drag-state) 0)
+                      dy (or (:dy drag-state) 0)]
+                  (when (or (not= dx 0) (not= dy 0))
+                    (reset! just-dragged-ref true))))
 
               :edge-create
               (handle-edge-create-end drag-state nodes viewport
@@ -317,6 +395,11 @@
 
               :pan
               nil ;; Pan is already complete, nothing more to do
+
+              :select
+              (handle-select-end drag-state nodes viewport e
+                                 selected-nodes set-selected-nodes!
+                                 set-selected-edges!)
 
               nil)
             (set-drag-state! nil)))
@@ -431,21 +514,31 @@
                   :temporary?  true
                   :viewport    viewport})))
 
+          ;; Render selection box during drag selection
+          (when (and drag-state (= (:type drag-state) :select))
+            (let [start-x    (:start-x drag-state)
+                  start-y    (:start-y drag-state)
+                  current-x  (:current-x drag-state)
+                  current-y  (:current-y drag-state)
+                  min-x      (min start-x current-x)
+                  min-y      (min start-y current-y)
+                  box-width  (js/Math.abs (- current-x start-x))
+                  box-height (js/Math.abs (- current-y start-y))]
+              ($ :rect
+                 {:x                min-x
+                  :y                min-y
+                  :width            box-width
+                  :height           box-height
+                  :fill             "rgba(0, 123, 255, 0.1)"
+                  :stroke           "rgba(0, 123, 255, 0.5)"
+                  :stroke-width     1
+                  :stroke-dasharray "4 2"
+                  :pointer-events   "none"})))
+
           ;; Render nodes with selected nodes last (on top)
           (for [n sorted-nodes]
-            (let [;; Apply drag offset if this node is being dragged
-                  is-dragging? (and drag-state
-                                    (= (:type drag-state) :node)
-                                    (= (:node-id drag-state)
-                                       (:id n)))
-                  display-node (if (and is-dragging?
-                                        (:dx drag-state))
-                                 (assoc n
-                                        :x (+ (:x n)
-                                              (:dx drag-state))
-                                        :y (+ (:y n)
-                                              (:dy drag-state)))
-                                 n)
+            (let [;; Use display node map which has drag offset applied
+                  display-node (get display-node-map (:id n) n)
                   ;; Highlight if valid edge creation target
                   is-highlighted?
                   (and drag-state

@@ -89,9 +89,10 @@
            :on-node-drag-end (fn [node-id x y]
                                (js/console.log "Node dragged:" node-id "to" x y)
                                (set-graph!
-                                (m/update-node graph node-id
-                                               (fn [node]
-                                                 (assoc node :x x :y y)))))
+                                (fn [current-graph]
+                                  (m/update-node current-graph node-id
+                                                 (fn [node]
+                                                   (assoc node :x x :y y))))))
            :on-edge-create (fn [edge-data]
                              (js/console.log "Edge created:" edge-data)
                              (when-let [new-graph (m/add-edge graph edge-data)]
